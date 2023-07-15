@@ -1046,17 +1046,27 @@ fn main_sub(
 struct LongOpt {
     name: *const c_char,
     has_arg: c_int,
-    flag: c_int,
+    flag: *const c_int,
     val: c_int,
 }
 
 impl LongOpt {
     fn new(name: &str, has_arg: Option<bool>, val: c_int) -> Self {
         Self {
-            name: name.as_ptr() as _,
+            name: CString::new(name).expect("CString::new failed").into_raw() as _,
             has_arg: has_arg.map_or(2, |v| v.into()),
-            flag: 0,
+            flag: ptr::null(),
             val,
+        }
+    }
+}
+
+impl Drop for LongOpt {
+    fn drop(&mut self) {
+        unsafe {
+            if !self.name.is_null() {
+                let _ = CString::from_raw(self.name as _);
+            }
         }
     }
 }
@@ -1066,7 +1076,7 @@ impl Default for LongOpt {
         Self {
             name: ptr::null(),
             has_arg: 0,
-            flag: 0,
+            flag: ptr::null(),
             val: 0,
         }
     }
